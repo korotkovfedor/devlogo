@@ -1,0 +1,27 @@
+package config
+
+import (
+	"io"
+
+	"gopkg.in/yaml.v3"
+)
+
+type Config struct {
+	Title         string `yaml:"title"`
+	ContentDir    string `yaml:"content_dir"`
+	TemplateDir   string `yaml:"template_dir"`
+	OutputDir     string `yaml:"output_dir"`
+	ServerBaseURL string `yaml:"base_url"`
+}
+
+func NewFromYAML(reader io.Reader) (Config, error) {
+	decoder := yaml.NewDecoder(reader)
+	decoder.KnownFields(true)
+
+	var cfg Config
+	if err := decoder.Decode(&cfg); err != nil {
+		return Config{}, err
+	}
+
+	return cfg, nil
+}

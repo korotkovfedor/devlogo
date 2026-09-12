@@ -1,0 +1,5 @@
+title: "My Engineering Log"
+content_dir: "./assets/entries"
+template_dir: "./assets/templates"
+output_dir: "./dist"
+base_url: "/"
