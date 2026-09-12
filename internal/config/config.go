@@ -10,6 +10,8 @@ type Config struct {
 	Title         string `yaml:"title"`
 	ContentDir    string `yaml:"content_dir"`
 	TemplateDir   string `yaml:"template_dir"`
+	PageTemplate  string `yaml:"page_template"`
+	IndexTemplate string `yaml:"index_template"`
 	OutputDir     string `yaml:"output_dir"`
 	ServerBaseURL string `yaml:"base_url"`
 }
