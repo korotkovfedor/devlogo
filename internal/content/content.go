@@ -11,7 +11,7 @@ import (
 
 type Content struct {
 	Header
-	Body
+	Markdown
 }
 
 func ParseMarkdown(reader io.Reader) (Content, error) {
@@ -25,9 +25,9 @@ func ParseMarkdown(reader io.Reader) (Content, error) {
 		return Content{}, err
 	}
 
-	body := string(bodyRaw)
+	body := Markdown(bodyRaw)
 
-	return Content{Header: header, Body: body}, nil
+	return Content{Header: header, Markdown: body}, nil
 
 }
 
@@ -39,7 +39,7 @@ func splitFrontMatter(r io.Reader) ([]byte, []byte, error) {
 		return nil, nil, fmt.Errorf("read first line: %w", err)
 	}
 
-	if strings.TrimSpace(firstLine) != "---" {
+	if !isDelimiter(firstLine) {
 		return nil, nil, errors.New("front matter not found")
 	}
 
@@ -47,12 +47,16 @@ func splitFrontMatter(r io.Reader) ([]byte, []byte, error) {
 
 	for {
 		line, err := reader.ReadString('\n')
-		if err != nil {
-			return nil, nil, fmt.Errorf("read front matter: %w", err)
+		if isDelimiter(line) {
+			break
 		}
 
-		if strings.TrimSpace(line) == "---" {
-			break
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return nil, nil, errors.New("front matter is not closed")
+			}
+
+			return nil, nil, fmt.Errorf("read front matter: %w", err)
 		}
 
 		header.WriteString(line)
@@ -64,4 +68,8 @@ func splitFrontMatter(r io.Reader) ([]byte, []byte, error) {
 	}
 
 	return header.Bytes(), body, nil
+}
+
+func isDelimiter(line string) bool {
+	return strings.TrimRight(line, "\r\n") == "---"
 }
