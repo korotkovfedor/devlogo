@@ -1,68 +1,69 @@
-## 🎯 Проект модуля
+# devlogo
 
-**`devlogo` — генератор статического инженерного журнала / changelog-сайта из Markdown-файлов.**
+CLI for building a static engineering log from Markdown, with entry pages, an index, and tag pages.
 
-Идея: в директории лежат записи о фичах, багах, архитектурных решениях и релизах. `devlogo` собирает из них статический HTML-сайт с индексом, тегами и страницами отдельных записей.
+## Installation
 
-Пример исходного файла:
+Requires Go 1.27.1 or later.
+
+```sh
+go install github.com/korotkovfedor/devlogo/cmd/devlogo@latest
+```
+
+The installation directory (usually `~/go/bin`, or `GOBIN` if set) must be in your `PATH`.
+
+## Quick start
+
+A configuration file and HTML templates are required. A ready-to-use example is included in `example/`:
+
+```sh
+git clone https://github.com/korotkovfedor/devlogo.git
+cd devlogo/example
+devlogo serve
+```
+
+Open [http://127.0.0.1:8080](http://127.0.0.1:8080). Press `Ctrl+C` to stop the server.
+
+| Command | Description |
+| --- | --- |
+| `devlogo build` | Build the site in `output_dir`. |
+| `devlogo serve` | Build the site and start a local server. |
+
+Restart `serve` after editing entries or templates: automatic rebuilds are not supported.
+
+## Configuration
+
+`config.yaml` is read from the current working directory. Directory paths are relative to it, and template filenames are relative to `template_dir`.
+
+```yaml
+title: "My App"
+content_dir: "./entries"
+template_dir: "./templates"
+page_template: "page.html"
+index_template: "index.html"
+tags_template: "tags.html"
+output_dir: "./dist"
+server_port: 8080
+```
+
+Each build deletes and recreates `output_dir`. You can deploy the generated directory to any static hosting service.
+
+## Entries
+
+Add `.md` files directly to `content_dir`. Start each file with YAML front matter:
 
 ```markdown
 ---
-title: "Перевели авторизацию на JWT"
+title: "Added a local server"
 date: 2026-09-13
-type: architecture
-tags:
-  - backend
-  - auth
-status: accepted
+type: feature
+status: done
+tags: [go, cli]
 ---
 
-## Причина
+## Change
 
-Старая схема сессий плохо масштабировалась...
-
-## Решение
-
-Использовать access/refresh token...
+The log can now be previewed locally with `devlogo serve`.
 ```
 
-### Критерии приёмки
-
-* Читает Markdown-файлы из указанной директории.
-* Парсит front matter в YAML.
-* Генерирует отдельную HTML-страницу для каждой записи.
-* Генерирует главную страницу со списком записей.
-* Генерирует отдельные страницы тегов, например `/tags/backend.html`.
-* Использует `html/template` для layout и страниц.
-* Конфигурируется через YAML
-* CLI имеет подкоманды:
-
-```text
-devlog build
-devlog serve
-devlog new
-```
-
-* `build` собирает сайт.
-* `serve` собирает сайт и запускает локальный HTTP-сервер.
-
-* Некорректный front matter должен возвращать нормальную ошибку с именем файла и причиной.
-* Минимум 80% покрытия тестами core-логики.
-* CLI и filesystem должны быть отделены от core-логики так, чтобы основная обработка тестировалась без запуска процесса.
-* Структура проекта:
-
-```text
-cmd/
-    devlog/
-
-internal/
-```
-
-* README должен содержать:
-
-    * установку;
-    * структуру директории;
-    * пример записи;
-    * пример конфига;
-    * команды CLI;
-    * пример generated output.
+`title`, `date`, `type`, and `status` are required. `tags` is optional.
