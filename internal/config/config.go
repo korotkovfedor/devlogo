@@ -18,7 +18,7 @@ type Config struct {
 	IndexTemplate string `yaml:"index_template"`
 	TagsTemplate  string `yaml:"tags_template"`
 	OutputDir     string `yaml:"output_dir"`
-	ServerBaseURL string `yaml:"base_url"`
+	ServerPort    int    `yaml:"server_port"`
 }
 
 func NewFromYAML(reader io.Reader) (Config, error) {
@@ -28,6 +28,10 @@ func NewFromYAML(reader io.Reader) (Config, error) {
 	var cfg Config
 	if err := decoder.Decode(&cfg); err != nil {
 		return Config{}, err
+	}
+
+	if cfg.ServerPort <= 0 || cfg.ServerPort > 65535 {
+		return Config{}, errors.New("invalid server port")
 	}
 
 	return cfg, nil

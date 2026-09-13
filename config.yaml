@@ -7,4 +7,4 @@ index_template: "index.html"
 tags_template: "tags.html"
 
 output_dir: "./dist"
-base_url: "/"
+server_port: 8080

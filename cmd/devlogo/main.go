@@ -1,7 +1,10 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"net"
+	"net/http"
 	"os"
 
 	"github.com/korotkovfedor/devlogo/internal/builder"
@@ -30,8 +33,8 @@ func main() {
 		Use:   "serve",
 		Short: "Build HTML files from markdown and launch local HTTP-server",
 		Args:  cobra.NoArgs,
-		Run: func(cmd *cobra.Command, args []string) {
-			panic("unimplemented")
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return serve()
 		},
 	}
 
@@ -50,6 +53,35 @@ func build() error {
 	}
 
 	return builder.Build(cfg)
+}
+
+func serve() error {
+	cfg, err := loadConfig(configPath)
+	if err != nil {
+		return err
+	}
+
+	if err := builder.Build(cfg); err != nil {
+		return fmt.Errorf("build site: %w", err)
+	}
+
+	addr := fmt.Sprintf("127.0.0.1:%d", cfg.ServerPort)
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		return fmt.Errorf("listen: %w", err)
+	}
+
+	fmt.Printf("Serving at http://%s\n", addr)
+
+	server := &http.Server{
+		Handler: http.FileServer(http.Dir(cfg.OutputDir)),
+	}
+
+	if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return fmt.Errorf("serve: %w", err)
+	}
+
+	return nil
 }
 
 func loadConfig(path string) (config.Config, error) {
