@@ -22,7 +22,9 @@
     {{ if .Header.Tags }}
     <ul>
         {{ range .Header.Tags }}
-        <a href="../tags/{{ . | tagSlug }}.html">{{ . }}</a>
+        <li>
+            <a href="../tags/{{ . | tagSlug }}.html">{{ . }}</a>
+        </li>
         {{ end }}
     </ul>
     {{ end }}

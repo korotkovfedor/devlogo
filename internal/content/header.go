@@ -1,7 +1,9 @@
 package content
 
 import (
+	"errors"
 	"io"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -24,5 +26,30 @@ func newHeaderFromYAML(reader io.Reader) (Header, error) {
 		return Header{}, err
 	}
 
+	if err := header.validate(); err != nil {
+		return Header{}, err
+	}
+
 	return header, nil
+}
+
+func (h Header) validate() error {
+	if strings.TrimSpace(h.Title) == "" {
+		return errors.New("empty title")
+	}
+
+	if h.Date.IsZero() {
+		return errors.New("empty date")
+	}
+
+	if strings.TrimSpace(h.Type) == "" {
+		return errors.New("empty type")
+	}
+
+	if strings.TrimSpace(h.Status) == "" {
+		return errors.New("empty status")
+	}
+
+	return nil
+
 }

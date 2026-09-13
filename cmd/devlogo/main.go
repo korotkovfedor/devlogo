@@ -20,6 +20,7 @@ func main() {
 	buildCmd := &cobra.Command{
 		Use:   "build",
 		Short: "Build HTML files from markdown",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return build()
 		},
@@ -28,6 +29,7 @@ func main() {
 	serveCmd := &cobra.Command{
 		Use:   "serve",
 		Short: "Build HTML files from markdown and launch local HTTP-server",
+		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			panic("unimplemented")
 		},
@@ -37,7 +39,6 @@ func main() {
 	rootCmd.AddCommand(serveCmd)
 
 	if err := rootCmd.Execute(); err != nil {
-		_, _ = fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }

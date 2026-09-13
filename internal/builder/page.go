@@ -16,6 +16,7 @@ func buildPage(
 	cfg config.Config,
 	tmpl *template.Template,
 	name string,
+	slug string,
 ) (content.Content, string, error) {
 	inputPath := filepath.Join(cfg.ContentDir, name)
 
@@ -29,7 +30,7 @@ func buildPage(
 		return content.Content{}, "", fmt.Errorf("render %q: %w", inputPath, err)
 	}
 
-	outputName := strings.TrimSuffix(name, filepath.Ext(name)) + ".html"
+	outputName := strings.TrimSuffix(slug, filepath.Ext(slug)) + ".html"
 	pagesDir := filepath.Join(cfg.OutputDir, pagesDirName)
 
 	if err := os.MkdirAll(pagesDir, 0755); err != nil {

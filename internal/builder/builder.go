@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/korotkovfedor/devlogo/internal/config"
 	"github.com/korotkovfedor/devlogo/internal/content"
@@ -20,6 +21,29 @@ type IndexEntry struct {
 }
 
 func Build(cfg config.Config) error {
+	parent := filepath.Dir(cfg.OutputDir)
+
+	tmpDir, err := os.MkdirTemp(parent, ".devlogo-build-*")
+	if err != nil {
+		return fmt.Errorf("create temp build dir: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	buildCfg := cfg
+	buildCfg.OutputDir = tmpDir
+
+	if err := buildSite(buildCfg); err != nil {
+		return err
+	}
+
+	if err := replaceOutput(tmpDir, cfg.OutputDir); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func buildSite(cfg config.Config) error {
 	pageTemplate, err := loadTemplate(cfg, cfg.PageTemplate)
 	if err != nil {
 		return err
@@ -46,26 +70,41 @@ func Build(cfg config.Config) error {
 
 	var indexEntries []IndexEntry
 	tags := make(map[string][]IndexEntry)
+	seen := make(map[string]string)
 
 	for _, entry := range entries {
 		if entry.IsDir() || filepath.Ext(entry.Name()) != ".md" {
 			continue
 		}
 
-		page, outputName, err := buildPage(cfg, pageTemplate, entry.Name())
+		slug := buildSlug(strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name())))
+
+		if previous, ok := seen[slug]; ok {
+			return fmt.Errorf(
+				"page slug collision: %q and %q both produce %q",
+				previous,
+				entry.Name(),
+				slug,
+			)
+		}
+
+		seen[slug] = entry.Name()
+
+		page, outputName, err := buildPage(cfg, pageTemplate, entry.Name(), slug)
 		if err != nil {
 			return err
 		}
 
 		indexEntry := IndexEntry{
 			Title: page.Title,
-			URL:   filepath.ToSlash(filepath.Join("pages", outputName)),
+			URL:   filepath.ToSlash(filepath.Join(pagesDirName, outputName)),
 		}
 
 		indexEntries = append(indexEntries, indexEntry)
 
 		for _, tag := range page.Tags {
-			tags[tag] = append(tags[tag], indexEntry)
+			tagSlug := buildSlug(tag)
+			tags[tagSlug] = append(tags[tagSlug], indexEntry)
 		}
 	}
 
@@ -74,7 +113,19 @@ func Build(cfg config.Config) error {
 	}
 
 	if err := buildTags(cfg, tagsTemplate, tags); err != nil {
+		return err
+	}
 
+	return nil
+}
+
+func replaceOutput(tmpDir, outputDir string) error {
+	if err := os.RemoveAll(outputDir); err != nil {
+		return fmt.Errorf("remove old output: %w", err)
+	}
+
+	if err := os.Rename(tmpDir, outputDir); err != nil {
+		return fmt.Errorf("replace output: %w", err)
 	}
 
 	return nil
@@ -86,10 +137,10 @@ func loadTemplate(
 ) (*template.Template, error) {
 	path := filepath.Join(cfg.TemplateDir, name)
 
-	tmpl, err := template.New(name).
+	tmpl, err := template.New(filepath.Base(name)).
 		Funcs(template.FuncMap{
 			"markdown": render.MarkdownToHTML,
-			"tagSlug":  tagSlug,
+			"tagSlug":  buildSlug,
 		}).
 		ParseFiles(path)
 	if err != nil {

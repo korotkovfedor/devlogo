@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	"github.com/korotkovfedor/devlogo/internal/config"
 	"github.com/korotkovfedor/devlogo/internal/render"
@@ -38,7 +39,7 @@ func buildTags(
 			return fmt.Errorf("render tag %q: %w", tag, err)
 		}
 
-		name := tagSlug(tag) + ".html"
+		name := buildSlug(tag) + ".html"
 		path := filepath.Join(tagsDir, name)
 
 		if err := os.WriteFile(path, html, 0644); err != nil {
@@ -49,8 +50,21 @@ func buildTags(
 	return nil
 }
 
-func tagSlug(tag string) string {
-	return strings.ToLower(
-		strings.ReplaceAll(strings.TrimSpace(tag), " ", "-"),
-	)
+func buildSlug(value string) string {
+	value = strings.ToLower(value)
+
+	var b strings.Builder
+	isLastDash := false
+
+	for _, letter := range value {
+		if unicode.IsLetter(letter) || unicode.IsNumber(letter) {
+			b.WriteRune(letter)
+			isLastDash = true
+		} else if !isLastDash && b.Len() > 0 {
+			b.WriteRune('-')
+			isLastDash = false
+		}
+	}
+
+	return strings.TrimRight(b.String(), "-")
 }
