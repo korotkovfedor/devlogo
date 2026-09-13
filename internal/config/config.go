@@ -1,7 +1,10 @@
 package config
 
 import (
+	"fmt"
 	"io"
+	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -26,5 +29,61 @@ func NewFromYAML(reader io.Reader) (Config, error) {
 		return Config{}, err
 	}
 
+	if err := cfg.validate(); err != nil {
+		return Config{}, err
+	}
+
 	return cfg, nil
+}
+
+func (cfg Config) validate() error {
+	output, err := filepath.Abs(cfg.OutputDir)
+	if err != nil {
+		return err
+	}
+
+	content, err := filepath.Abs(cfg.ContentDir)
+	if err != nil {
+		return err
+	}
+
+	templates, err := filepath.Abs(cfg.TemplateDir)
+	if err != nil {
+		return err
+	}
+
+	if pathsOverlap(output, content) {
+		return fmt.Errorf(
+			"output directory %q overlaps content directory %q",
+			output,
+			content,
+		)
+	}
+
+	if pathsOverlap(output, templates) {
+		return fmt.Errorf(
+			"output directory %q overlaps template directory %q",
+			output,
+			templates,
+		)
+	}
+
+	return nil
+}
+
+func pathsOverlap(a, b string) bool {
+	a = filepath.Clean(a)
+	b = filepath.Clean(b)
+
+	rel, err := filepath.Rel(a, b)
+	if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return true
+	}
+
+	rel, err = filepath.Rel(b, a)
+	if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return true
+	}
+
+	return false
 }

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	"github.com/korotkovfedor/devlogo/internal/config"
 	"github.com/korotkovfedor/devlogo/internal/content"
@@ -21,11 +22,22 @@ type IndexEntry struct {
 }
 
 func Build(cfg config.Config) error {
-	parent := filepath.Dir(cfg.OutputDir)
-
-	tmpDir, err := os.MkdirTemp(parent, ".devlogo-build-*")
+	outputDir, err := filepath.Abs(cfg.OutputDir)
 	if err != nil {
-		return fmt.Errorf("create temp build dir: %w", err)
+		return fmt.Errorf("resolve output dir: %w", err)
+	}
+	outputDir = filepath.Clean(outputDir)
+
+	parent := filepath.Dir(outputDir)
+	base := filepath.Base(outputDir)
+
+	if err := os.MkdirAll(parent, 0755); err != nil {
+		return fmt.Errorf("create output parent dir: %w", err)
+	}
+
+	tmpDir, err := os.MkdirTemp(parent, "."+base+"-build-*")
+	if err != nil {
+		return fmt.Errorf("create temporary build dir: %w", err)
 	}
 	defer os.RemoveAll(tmpDir)
 
@@ -36,7 +48,11 @@ func Build(cfg config.Config) error {
 		return err
 	}
 
-	if err := replaceOutput(tmpDir, cfg.OutputDir); err != nil {
+	if err := os.Chmod(tmpDir, 0755); err != nil {
+		return fmt.Errorf("set output dir permissions: %w", err)
+	}
+
+	if err := replaceOutput(tmpDir, outputDir); err != nil {
 		return err
 	}
 
@@ -163,4 +179,26 @@ func parseEntry(path string) (content.Content, error) {
 	}
 
 	return result, nil
+}
+
+func buildSlug(value string) string {
+	value = strings.ToLower(value)
+
+	var b strings.Builder
+	isLastDash := false
+
+	for _, r := range value {
+		if unicode.IsLetter(r) || unicode.IsNumber(r) {
+			b.WriteRune(r)
+			isLastDash = false
+			continue
+		}
+
+		if b.Len() > 0 && !isLastDash {
+			b.WriteRune('-')
+			isLastDash = true
+		}
+	}
+
+	return strings.TrimRight(b.String(), "-")
 }
