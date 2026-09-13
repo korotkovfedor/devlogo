@@ -5,7 +5,6 @@ import (
 	"html/template"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/korotkovfedor/devlogo/internal/config"
 	"github.com/korotkovfedor/devlogo/internal/content"
@@ -13,28 +12,28 @@ import (
 )
 
 const pagesDirName = "pages"
+const tagsDirName = "tags"
 
 type IndexEntry struct {
 	Title string
 	URL   string
 }
 
-type IndexData struct {
-	Title   string
-	Entries []IndexEntry
-}
-
 func Build(cfg config.Config) error {
-	pageTemplate, err := loadPageTemplate(cfg)
+	pageTemplate, err := loadTemplate(cfg, cfg.PageTemplate)
 	if err != nil {
 		return err
 	}
 
-	indexTemplate, err := loadIndexTemplate(cfg)
+	indexTemplate, err := loadTemplate(cfg, cfg.IndexTemplate)
 	if err != nil {
 		return err
 	}
-	var indexEntries []IndexEntry
+
+	tagsTemplate, err := loadTemplate(cfg, cfg.TagsTemplate)
+	if err != nil {
+		return err
+	}
 
 	if err := os.MkdirAll(cfg.OutputDir, 0755); err != nil {
 		return fmt.Errorf("create output dir: %w", err)
@@ -44,6 +43,9 @@ func Build(cfg config.Config) error {
 	if err != nil {
 		return fmt.Errorf("read content dir: %w", err)
 	}
+
+	var indexEntries []IndexEntry
+	tags := make(map[string][]IndexEntry)
 
 	for _, entry := range entries {
 		if entry.IsDir() || filepath.Ext(entry.Name()) != ".md" {
@@ -55,104 +57,46 @@ func Build(cfg config.Config) error {
 			return err
 		}
 
-		indexEntries = append(indexEntries, IndexEntry{
+		indexEntry := IndexEntry{
 			Title: page.Title,
-			URL:   filepath.ToSlash(filepath.Join(pagesDirName, outputName)),
-		})
+			URL:   filepath.ToSlash(filepath.Join("pages", outputName)),
+		}
+
+		indexEntries = append(indexEntries, indexEntry)
+
+		for _, tag := range page.Tags {
+			tags[tag] = append(tags[tag], indexEntry)
+		}
 	}
 
 	if err := buildIndex(cfg, indexTemplate, indexEntries); err != nil {
 		return err
 	}
 
+	if err := buildTags(cfg, tagsTemplate, tags); err != nil {
+
+	}
+
 	return nil
 }
 
-func loadPageTemplate(cfg config.Config) (*template.Template, error) {
-	path := filepath.Join(cfg.TemplateDir, cfg.PageTemplate)
-
-	tmpl, err := template.New(cfg.PageTemplate).
-		Funcs(template.FuncMap{
-			"markdown": render.MarkdownToHTML,
-		}).
-		ParseFiles(path)
-
-	if err != nil {
-		return nil, fmt.Errorf("parse page template: %w", err)
-	}
-
-	return tmpl, nil
-}
-
-func loadIndexTemplate(cfg config.Config) (*template.Template, error) {
-	path := filepath.Join(cfg.TemplateDir, cfg.IndexTemplate)
-
-	tmpl, err := template.New(cfg.IndexTemplate).
-		Funcs(template.FuncMap{
-			"markdown": render.MarkdownToHTML,
-		}).
-		ParseFiles(path)
-
-	if err != nil {
-		return nil, fmt.Errorf("parse index template: %w", err)
-	}
-
-	return tmpl, nil
-}
-func buildPage(
+func loadTemplate(
 	cfg config.Config,
-	tmpl *template.Template,
 	name string,
-) (content.Content, string, error) {
-	inputPath := filepath.Join(cfg.ContentDir, name)
+) (*template.Template, error) {
+	path := filepath.Join(cfg.TemplateDir, name)
 
-	page, err := parseEntry(inputPath)
+	tmpl, err := template.New(name).
+		Funcs(template.FuncMap{
+			"markdown": render.MarkdownToHTML,
+			"tagSlug":  tagSlug,
+		}).
+		ParseFiles(path)
 	if err != nil {
-		return content.Content{}, "", fmt.Errorf("process %q: %w", inputPath, err)
+		return nil, fmt.Errorf("parse template %q: %w", name, err)
 	}
 
-	html, err := render.ToHTML(page, tmpl)
-	if err != nil {
-		return content.Content{}, "", fmt.Errorf("render %q: %w", inputPath, err)
-	}
-
-	outputName := strings.TrimSuffix(name, filepath.Ext(name)) + ".html"
-	pagesDir := filepath.Join(cfg.OutputDir, pagesDirName)
-
-	if err := os.MkdirAll(pagesDir, 0755); err != nil {
-		return content.Content{}, "", fmt.Errorf("create pages dir: %w", err)
-	}
-	outputPath := filepath.Join(pagesDir, outputName)
-
-	if err := os.WriteFile(outputPath, html, 0644); err != nil {
-		return content.Content{}, "", fmt.Errorf("write %q: %w", outputPath, err)
-	}
-
-	return page, outputName, nil
-}
-
-func buildIndex(
-	cfg config.Config,
-	tmpl *template.Template,
-	entries []IndexEntry,
-) error {
-	data := IndexData{
-		Title:   cfg.Title,
-		Entries: entries,
-	}
-
-	html, err := render.ToHTML(data, tmpl)
-	if err != nil {
-		return fmt.Errorf("render index: %w", err)
-	}
-
-	outputPath := filepath.Join(cfg.OutputDir, "index.html")
-
-	if err := os.WriteFile(outputPath, html, 0644); err != nil {
-		return fmt.Errorf("write index: %w", err)
-	}
-
-	return nil
+	return tmpl, nil
 }
 
 func parseEntry(path string) (content.Content, error) {

@@ -12,6 +12,7 @@ type Config struct {
 	TemplateDir   string `yaml:"template_dir"`
 	PageTemplate  string `yaml:"page_template"`
 	IndexTemplate string `yaml:"index_template"`
+	TagsTemplate  string `yaml:"tags_template"`
 	OutputDir     string `yaml:"output_dir"`
 	ServerBaseURL string `yaml:"base_url"`
 }

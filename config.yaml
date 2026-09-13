@@ -4,6 +4,7 @@ content_dir: "./assets/entries"
 template_dir: "./assets/templates"
 page_template: "page.html"
 index_template: "index.html"
+tags_template: "tags.html"
 
 output_dir: "./dist"
 base_url: "/"

@@ -33,17 +33,8 @@ func main() {
 		},
 	}
 
-	newCmd := &cobra.Command{
-		Use:   "new",
-		Short: "Create a new markdown content file",
-		Run: func(cmd *cobra.Command, args []string) {
-			panic("unimplemented")
-		},
-	}
-
 	rootCmd.AddCommand(buildCmd)
 	rootCmd.AddCommand(serveCmd)
-	rootCmd.AddCommand(newCmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, err)
