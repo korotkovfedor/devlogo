@@ -22,10 +22,6 @@ func buildTags(
 ) error {
 	tagsDir := filepath.Join(cfg.OutputDir, tagsDirName)
 
-	if err := os.MkdirAll(tagsDir, 0755); err != nil {
-		return fmt.Errorf("create tags dir: %w", err)
-	}
-
 	for tag, entries := range tags {
 		data := TagPageData{
 			Tag:     tag,
@@ -37,7 +33,7 @@ func buildTags(
 			return fmt.Errorf("render tag %q: %w", tag, err)
 		}
 
-		name := buildSlug(tag) + ".html"
+		name := tag + ".html"
 		path := filepath.Join(tagsDir, name)
 
 		if err := os.WriteFile(path, html, 0644); err != nil {

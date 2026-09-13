@@ -22,44 +22,10 @@ type IndexEntry struct {
 }
 
 func Build(cfg config.Config) error {
-	outputDir, err := filepath.Abs(cfg.OutputDir)
-	if err != nil {
-		return fmt.Errorf("resolve output dir: %w", err)
-	}
-	outputDir = filepath.Clean(outputDir)
-
-	parent := filepath.Dir(outputDir)
-	base := filepath.Base(outputDir)
-
-	if err := os.MkdirAll(parent, 0755); err != nil {
-		return fmt.Errorf("create output parent dir: %w", err)
-	}
-
-	tmpDir, err := os.MkdirTemp(parent, "."+base+"-build-*")
-	if err != nil {
-		return fmt.Errorf("create temporary build dir: %w", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	buildCfg := cfg
-	buildCfg.OutputDir = tmpDir
-
-	if err := buildSite(buildCfg); err != nil {
+	if err := config.ValidatePaths(cfg); err != nil {
 		return err
 	}
 
-	if err := os.Chmod(tmpDir, 0755); err != nil {
-		return fmt.Errorf("set output dir permissions: %w", err)
-	}
-
-	if err := replaceOutput(tmpDir, outputDir); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func buildSite(cfg config.Config) error {
 	pageTemplate, err := loadTemplate(cfg, cfg.PageTemplate)
 	if err != nil {
 		return err
@@ -75,8 +41,12 @@ func buildSite(cfg config.Config) error {
 		return err
 	}
 
-	if err := os.MkdirAll(cfg.OutputDir, 0755); err != nil {
+	if err := os.RemoveAll(cfg.OutputDir); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("create output dir: %w", err)
+	}
+
+	if err := prepareOutput(cfg); err != nil {
+		return err
 	}
 
 	entries, err := os.ReadDir(cfg.ContentDir)
@@ -135,13 +105,15 @@ func buildSite(cfg config.Config) error {
 	return nil
 }
 
-func replaceOutput(tmpDir, outputDir string) error {
-	if err := os.RemoveAll(outputDir); err != nil {
-		return fmt.Errorf("remove old output: %w", err)
-	}
-
-	if err := os.Rename(tmpDir, outputDir); err != nil {
-		return fmt.Errorf("replace output: %w", err)
+func prepareOutput(cfg config.Config) error {
+	for _, dir := range []string{
+		cfg.OutputDir,
+		filepath.Join(cfg.OutputDir, pagesDirName),
+		filepath.Join(cfg.OutputDir, tagsDirName),
+	} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("create output dir %q: %w", dir, err)
+		}
 	}
 
 	return nil

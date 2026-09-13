@@ -5,7 +5,6 @@ import (
 	"html/template"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/korotkovfedor/devlogo/internal/config"
 	"github.com/korotkovfedor/devlogo/internal/content"
@@ -30,13 +29,8 @@ func buildPage(
 		return content.Content{}, "", fmt.Errorf("render %q: %w", inputPath, err)
 	}
 
-	outputName := strings.TrimSuffix(slug, filepath.Ext(slug)) + ".html"
-	pagesDir := filepath.Join(cfg.OutputDir, pagesDirName)
-
-	if err := os.MkdirAll(pagesDir, 0755); err != nil {
-		return content.Content{}, "", fmt.Errorf("create pages dir: %w", err)
-	}
-	outputPath := filepath.Join(pagesDir, outputName)
+	outputName := slug + ".html"
+	outputPath := filepath.Join(cfg.OutputDir, pagesDirName, outputName)
 
 	if err := os.WriteFile(outputPath, html, 0644); err != nil {
 		return content.Content{}, "", fmt.Errorf("write %q: %w", outputPath, err)

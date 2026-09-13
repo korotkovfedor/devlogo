@@ -30,14 +30,10 @@ func NewFromYAML(reader io.Reader) (Config, error) {
 		return Config{}, err
 	}
 
-	if err := cfg.validate(); err != nil {
-		return Config{}, err
-	}
-
 	return cfg, nil
 }
 
-func (cfg Config) validate() error {
+func ValidatePaths(cfg Config) error {
 	for _, path := range []string{
 		cfg.ContentDir,
 		cfg.TemplateDir,
