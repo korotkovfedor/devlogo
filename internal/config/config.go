@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -30,11 +31,40 @@ func NewFromYAML(reader io.Reader) (Config, error) {
 		return Config{}, err
 	}
 
-	if cfg.ServerPort <= 0 || cfg.ServerPort > 65535 {
-		return Config{}, errors.New("invalid server port")
+	if err := cfg.validate(); err != nil {
+		return Config{}, err
 	}
 
 	return cfg, nil
+}
+
+func (c Config) validate() error {
+	if strings.TrimSpace(c.Title) == "" {
+		return errors.New("empty title")
+	}
+	if strings.TrimSpace(c.ContentDir) == "" {
+		return errors.New("empty content_dir")
+	}
+	if strings.TrimSpace(c.TemplateDir) == "" {
+		return errors.New("empty template_dir")
+	}
+	if strings.TrimSpace(c.PageTemplate) == "" {
+		return errors.New("empty page_template")
+	}
+	if strings.TrimSpace(c.IndexTemplate) == "" {
+		return errors.New("empty index_template")
+	}
+	if strings.TrimSpace(c.TagsTemplate) == "" {
+		return errors.New("empty tags_template")
+	}
+	if strings.TrimSpace(c.OutputDir) == "" {
+		return errors.New("empty output_dir")
+	}
+	if c.ServerPort <= 0 || c.ServerPort > 65535 {
+		return errors.New("invalid server port")
+	}
+
+	return nil
 }
 
 func ValidatePaths(cfg Config) error {
