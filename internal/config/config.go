@@ -1,10 +1,11 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
-	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -37,53 +38,123 @@ func NewFromYAML(reader io.Reader) (Config, error) {
 }
 
 func (cfg Config) validate() error {
-	output, err := filepath.Abs(cfg.OutputDir)
+	for _, path := range []string{
+		cfg.ContentDir,
+		cfg.TemplateDir,
+		cfg.OutputDir,
+	} {
+		if err := rejectSymlinks(path); err != nil {
+			return err
+		}
+	}
+
+	overlap, err := pathsOverlap(cfg.OutputDir, cfg.ContentDir)
 	if err != nil {
 		return err
 	}
 
-	content, err := filepath.Abs(cfg.ContentDir)
-	if err != nil {
-		return err
-	}
-
-	templates, err := filepath.Abs(cfg.TemplateDir)
-	if err != nil {
-		return err
-	}
-
-	if pathsOverlap(output, content) {
+	if overlap {
 		return fmt.Errorf(
 			"output directory %q overlaps content directory %q",
-			output,
-			content,
+			cfg.OutputDir,
+			cfg.ContentDir,
 		)
 	}
 
-	if pathsOverlap(output, templates) {
+	overlap, err = pathsOverlap(cfg.OutputDir, cfg.TemplateDir)
+	if err != nil {
+		return err
+	}
+
+	if overlap {
 		return fmt.Errorf(
 			"output directory %q overlaps template directory %q",
-			output,
-			templates,
+			cfg.OutputDir,
+			cfg.TemplateDir,
 		)
 	}
 
 	return nil
 }
 
-func pathsOverlap(a, b string) bool {
-	a = filepath.Clean(a)
-	b = filepath.Clean(b)
-
-	rel, err := filepath.Rel(a, b)
-	if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return true
+func rejectSymlinks(path string) error {
+	path, err := filepath.Abs(path)
+	if err != nil {
+		return err
 	}
 
-	rel, err = filepath.Rel(b, a)
-	if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return true
+	for current := path; ; current = filepath.Dir(current) {
+		info, err := os.Lstat(current)
+
+		if err == nil && info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("symlinks are not allowed in path %q", path)
+		}
+
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("inspect %q: %w", current, err)
+		}
+
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
 	}
 
-	return false
+	return nil
+}
+
+func pathsOverlap(output, source string) (bool, error) {
+	inside, err := isInside(output, source)
+	if err != nil {
+		return false, err
+	}
+	if inside {
+		return true, nil
+	}
+
+	// there may be no output upon the first launch
+	if _, err := os.Stat(output); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return false, nil
+		}
+
+		return false, err
+	}
+
+	return isInside(source, output)
+}
+
+func isInside(child, parent string) (bool, error) {
+	parentInfo, err := os.Stat(parent)
+	if err != nil {
+		return false, fmt.Errorf("stat %q: %w", parent, err)
+	}
+
+	child, err = filepath.Abs(child)
+	if err != nil {
+		return false, err
+	}
+
+	for {
+		info, err := os.Stat(child)
+
+		switch {
+		case err == nil:
+			if os.SameFile(info, parentInfo) {
+				return true, nil
+			}
+
+		case !errors.Is(err, os.ErrNotExist):
+			return false, fmt.Errorf("stat %q: %w", child, err)
+		}
+
+		next := filepath.Dir(child)
+		if next == child {
+			break
+		}
+
+		child = next
+	}
+
+	return false, nil
 }
