@@ -14,27 +14,23 @@ import (
 func buildPage(
 	cfg config.Config,
 	tmpl *template.Template,
-	name string,
+	page content.Content,
 	slug string,
-) (content.Content, string, error) {
-	inputPath := filepath.Join(cfg.ContentDir, name)
-
-	page, err := parseEntry(inputPath)
-	if err != nil {
-		return content.Content{}, "", fmt.Errorf("process %q: %w", inputPath, err)
-	}
-
+) error {
 	html, err := render.ToHTML(page, tmpl)
 	if err != nil {
-		return content.Content{}, "", fmt.Errorf("render %q: %w", inputPath, err)
+		return fmt.Errorf("render page %q: %w", slug, err)
 	}
 
-	outputName := slug + ".html"
-	outputPath := filepath.Join(cfg.OutputDir, pagesDirName, outputName)
+	outputPath := filepath.Join(
+		cfg.OutputDir,
+		pagesDirName,
+		slug+".html",
+	)
 
 	if err := os.WriteFile(outputPath, html, 0644); err != nil {
-		return content.Content{}, "", fmt.Errorf("write %q: %w", outputPath, err)
+		return fmt.Errorf("write %q: %w", outputPath, err)
 	}
 
-	return page, outputName, nil
+	return nil
 }

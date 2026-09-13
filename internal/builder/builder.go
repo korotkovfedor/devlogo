@@ -41,8 +41,8 @@ func Build(cfg config.Config) error {
 		return err
 	}
 
-	if err := os.RemoveAll(cfg.OutputDir); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("create output dir: %w", err)
+	if err := os.RemoveAll(cfg.OutputDir); err != nil {
+		return fmt.Errorf("remove old output dir: %w", err)
 	}
 
 	if err := prepareOutput(cfg); err != nil {
@@ -63,27 +63,35 @@ func Build(cfg config.Config) error {
 			continue
 		}
 
-		slug := buildSlug(strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name())))
+		name := entry.Name()
+		slug := buildSlug(strings.TrimSuffix(name, filepath.Ext(name)))
 
 		if previous, ok := seen[slug]; ok {
 			return fmt.Errorf(
 				"page slug collision: %q and %q both produce %q",
 				previous,
-				entry.Name(),
+				name,
 				slug,
 			)
 		}
+		seen[slug] = name
 
-		seen[slug] = entry.Name()
+		inputPath := filepath.Join(cfg.ContentDir, name)
 
-		page, outputName, err := buildPage(cfg, pageTemplate, entry.Name(), slug)
+		page, err := parseEntry(inputPath)
 		if err != nil {
+			return fmt.Errorf("process %q: %w", inputPath, err)
+		}
+
+		if err := buildPage(cfg, pageTemplate, page, slug); err != nil {
 			return err
 		}
 
 		indexEntry := IndexEntry{
 			Title: page.Title,
-			URL:   filepath.ToSlash(filepath.Join(pagesDirName, outputName)),
+			URL: filepath.ToSlash(
+				filepath.Join(pagesDirName, slug+".html"),
+			),
 		}
 
 		indexEntries = append(indexEntries, indexEntry)
