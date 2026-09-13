@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Tag: {{ .Tag }}</title>
+</head>
+<body>
+<h1>Tag: {{ .Tag }}</h1>
+
+<ul>
+    {{ range .Entries }}
+    <li>
+        <a href="../{{ .URL }}">{{ .Title }}</a>
+    </li>
+    {{ end }}
+</ul>
+
+<a href="../index.html">Back to index</a>
+</body>
+</html>
