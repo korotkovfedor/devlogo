@@ -67,3 +67,7 @@ The log can now be previewed locally with `devlogo serve`.
 ```
 
 `title`, `date`, `type`, and `status` are required. `tags` is optional.
+
+## License
+
+[MIT](LICENSE).
